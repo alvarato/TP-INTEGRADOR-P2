@@ -1,0 +1,60 @@
+Contexto: TPI Programación 2 (UTN), Food Store
+
+Proyecto: app de consola en Java 21, POO, JDBC puro, sin Maven/Gradle (se compila con javac y el driver va como .jar en lib/). Paquete base: integrado.prog2. Entregables: código, script SQL en db/, README, PDF de documentación, video de 10 a 15 min y un .zip.
+
+Persistencia mixta (el eje del trabajo):
+
+Base de datos (JDBC): solo Categoria y Producto. Dos tablas, categoria y producto, esta con FK categoria_id. No pueden existir tablas de usuario, pedido ni detalle_pedido.
+Memoria (Colecciones): Usuario, Pedido y DetallePedido.
+
+Reglas clave:
+
+Todas las relaciones son unidireccionales: Categoría→Productos, Usuario→Pedidos, Pedido→Detalles, Detalle→Producto.
+categoria_id no se mapea en Producto. Viaja como parámetro: insert(Producto, Long idCategoria) y reasignarCategoria(idProducto, idCategoria).
+Soft delete en ambos almacenamientos: UPDATE ... SET eliminado = TRUE en la base y eliminado = true en memoria. Nunca DELETE.
+El nombre de la categoría es único entre las activas y se valida con SQL. El mail del usuario es único y se valida en memoria.
+No se puede dar de baja una categoría con productos activos.
+Al confirmar un pedido, el stock se descuenta en una única transacción (setAutoCommit(false), commit o rollback). Cancelar o eliminar un pedido repone el stock.
+Ninguna SQLException ni stack trace llega al usuario: se traduce a excepciones propias (PersistenciaException, EntidadNoEncontradaException, StockInvalidoException, etc.).
+java.sql y el SQL solo van en dao.
+La conexión se lee de src/META-INF/persistence.xml con el parser DOM del JDK, y al arrancar se hace un diagnóstico de conexión.
+El menú principal debe indicar [BASE DE DATOS] o [MEMORIA] en cada opción, e incluir "Ver configuración de conexión".
+
+Arquitectura de paquetes: config, entities, enums, interfaces, exception, dao, repository, service, ui y Main.
+
+Estado actual
+
+Hecho:
+
+Enums Rol, Estado y FormaPago, creados por vos en integrado.prog2.enums.
+Interfaz Calculable en interfaces/, con void calcularTotal().
+Entidades en entities/: Base, Categoria, Producto, Usuario, Pedido y DetallePedido. No las compilé, así que falta verificarlas con javac.
+
+Contrato de las entidades (para que los DAO, repositorios y servicios sean coherentes):
+
+Base (abstracta): Long id, boolean eliminado, LocalDateTime createdAt. Tiene setters públicos, eliminar() y equals/hashCode por clase e id.
+Categoria(String nombre, String descripcion): lista interna de productos con getProductos() (no modificable), agregarProducto() y setProductos().
+Producto(String nombre, Double precio, String descripcion, int stock, String imagen, Boolean disponible): sin referencia a la categoría.
+Usuario(nombre, apellido, mail, celular, contrasenia, rol): agregarPedido(), quitarPedido() y getPedidos(). El atributo se llama contrasenia y el toString no la muestra.
+Pedido(FormaPago): arranca con fecha de hoy, estado PENDIENTE y total 0. Implementa Calculable.
+addDetallePedido(int cantidad, Double precioUnitario, Producto): si el producto ya tiene línea activa, suma la cantidad. Recalcula el total.
+findeDetallePedidoByProducto(Producto): devuelve la línea activa o null.
+deleteDetallePedidoByProducto(Producto): baja lógica de la línea y recálculo del total.
+eliminar(): baja en cascada sobre los detalles.
+DetallePedido(int cantidad, Double subtotal, Producto).
+
+Decisiones tomadas por mí que podés revisar:
+
+El Double de addDetallePedido lo interpreté como precio unitario, y el subtotal se calcula adentro.
+Las validaciones de negocio (precio y stock >= 0, cantidad > 0, stock suficiente) no están en las entidades. Van en service con excepciones propias.
+Pendiente (orden sugerido)
+Excepciones propias (exception/).
+Script SQL en db/ (categoria y producto, con claves y restricciones, y datos de ejemplo).
+persistence.xml y ConexionDB (lectura con DOM, diagnóstico de conexión).
+GenericDAO, CategoriaDAO y ProductoDAO (con la transacción de descuento y reposición de stock).
+Repositorios en memoria (UsuarioRepository, con generación de ids y baja lógica).
+Servicios con las reglas de negocio.
+UI de consola: menú principal, submenús CRUD y validación de entradas.
+Main, README, PDF de documentación y guion del video.
+
+Decisiones abiertas: motor de base de datos (H2 embebido o MySQL 8) y si el Double de addDetallePedido es precio o subtotal.
