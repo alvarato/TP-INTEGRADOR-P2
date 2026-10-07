@@ -1,60 +1,132 @@
-Contexto: TPI Programación 2 (UTN), Food Store
+# Resumen del proyecto: TPI Programación 2 (UTN), Food Store
 
-Proyecto: app de consola en Java 21, POO, JDBC puro, sin Maven/Gradle (se compila con javac y el driver va como .jar en lib/). Paquete base: integrado.prog2. Entregables: código, script SQL en db/, README, PDF de documentación, video de 10 a 15 min y un .zip.
+## Contexto
 
-Persistencia mixta (el eje del trabajo):
+App de consola en Java 21, POO, JDBC puro, sin Maven/Gradle (se compila con `javac`, el driver va como `.jar` en `lib/`). Paquete base: `integrado.prog2`.
+Entregables: código, script SQL en `db/`, README, PDF de documentación, video de 10 a 15 min y un `.zip`.
 
-Base de datos (JDBC): solo Categoria y Producto. Dos tablas, categoria y producto, esta con FK categoria_id. No pueden existir tablas de usuario, pedido ni detalle_pedido.
-Memoria (Colecciones): Usuario, Pedido y DetallePedido.
+## Persistencia mixta (el eje del trabajo)
 
-Reglas clave:
+- **Base de datos (JDBC):** solo `Categoria` y `Producto`. Dos tablas, `categoria` y `producto` (con FK `categoria_id`). No pueden existir tablas de usuario, pedido ni detalle_pedido.
+- **Memoria (colecciones):** `Usuario`, `Pedido` y `DetallePedido`.
 
-Todas las relaciones son unidireccionales: Categoría→Productos, Usuario→Pedidos, Pedido→Detalles, Detalle→Producto.
-categoria_id no se mapea en Producto. Viaja como parámetro: insert(Producto, Long idCategoria) y reasignarCategoria(idProducto, idCategoria).
-Soft delete en ambos almacenamientos: UPDATE ... SET eliminado = TRUE en la base y eliminado = true en memoria. Nunca DELETE.
-El nombre de la categoría es único entre las activas y se valida con SQL. El mail del usuario es único y se valida en memoria.
-No se puede dar de baja una categoría con productos activos.
-Al confirmar un pedido, el stock se descuenta en una única transacción (setAutoCommit(false), commit o rollback). Cancelar o eliminar un pedido repone el stock.
-Ninguna SQLException ni stack trace llega al usuario: se traduce a excepciones propias (PersistenciaException, EntidadNoEncontradaException, StockInvalidoException, etc.).
-java.sql y el SQL solo van en dao.
-La conexión se lee de src/META-INF/persistence.xml con el parser DOM del JDK, y al arrancar se hace un diagnóstico de conexión.
-El menú principal debe indicar [BASE DE DATOS] o [MEMORIA] en cada opción, e incluir "Ver configuración de conexión".
+## Reglas clave
 
-Arquitectura de paquetes: config, entities, enums, interfaces, exception, dao, repository, service, ui y Main.
+- Relaciones unidireccionales: Categoría→Productos, Usuario→Pedidos, Pedido→Detalles, Detalle→Producto.
+- `categoria_id` no se mapea en `Producto`: viaja como parámetro (`insert(Producto, Long idCategoria)` y `reasignarCategoria(idProducto, idCategoria)`).
+- Soft delete en ambos almacenamientos (`UPDATE ... SET eliminado = TRUE` / `eliminado = true`). Nunca DELETE.
+- Nombre de categoría único entre las activas, validado con SQL. Mail de usuario único, validado en memoria.
+- No se puede dar de baja una categoría con productos activos.
+- Confirmar un pedido descuenta el stock en una única transacción (`setAutoCommit(false)`, commit o rollback). Cancelar o eliminar un pedido repone el stock.
+- Ninguna `SQLException` ni stack trace llega al usuario: se traduce a excepciones propias.
+- `java.sql` y el SQL solo van en `dao` (excepción inevitable: `ConexionDB` en `config` devuelve `Connection`, pero no contiene SQL).
+- La conexión se lee de `src/META-INF/persistence.xml` con el parser DOM del JDK, y al arrancar se hace un diagnóstico de conexión.
+- El menú principal indica `[BASE DE DATOS]` o `[MEMORIA]` en cada opción e incluye "Ver configuración de conexión".
 
-Estado actual
+Arquitectura de paquetes: `config`, `entities`, `enums`, `interfaces`, `exception`, `dao`, `repository`, `service`, `ui` y `Main`.
 
-Hecho:
+## Estado actual
 
-Enums Rol, Estado y FormaPago, creados por vos en integrado.prog2.enums.
-Interfaz Calculable en interfaces/, con void calcularTotal().
-Entidades en entities/: Base, Categoria, Producto, Usuario, Pedido y DetallePedido. No las compilé, así que falta verificarlas con javac.
+No se compiló el proyecto completo. Solo `exception/` y `config/` se compilaron de forma aislada (sin errores). El resto está sin verificar con `javac`.
 
-Contrato de las entidades (para que los DAO, repositorios y servicios sean coherentes):
+### Hecho por el usuario
 
-Base (abstracta): Long id, boolean eliminado, LocalDateTime createdAt. Tiene setters públicos, eliminar() y equals/hashCode por clase e id.
-Categoria(String nombre, String descripcion): lista interna de productos con getProductos() (no modificable), agregarProducto() y setProductos().
-Producto(String nombre, Double precio, String descripcion, int stock, String imagen, Boolean disponible): sin referencia a la categoría.
-Usuario(nombre, apellido, mail, celular, contrasenia, rol): agregarPedido(), quitarPedido() y getPedidos(). El atributo se llama contrasenia y el toString no la muestra.
-Pedido(FormaPago): arranca con fecha de hoy, estado PENDIENTE y total 0. Implementa Calculable.
-addDetallePedido(int cantidad, Double precioUnitario, Producto): si el producto ya tiene línea activa, suma la cantidad. Recalcula el total.
-findeDetallePedidoByProducto(Producto): devuelve la línea activa o null.
-deleteDetallePedidoByProducto(Producto): baja lógica de la línea y recálculo del total.
-eliminar(): baja en cascada sobre los detalles.
-DetallePedido(int cantidad, Double subtotal, Producto).
+- Enums `Rol`, `Estado`, `FormaPago` en `enums/`.
+- Interfaz `Calculable` (`void calcularTotal()`) en `interfaces/`.
+- Entidades en `entities/`: `Base`, `Categoria`, `Producto`, `Usuario`, `Pedido`, `DetallePedido`.
 
-Decisiones tomadas por mí que podés revisar:
+### Contrato de las entidades
 
-El Double de addDetallePedido lo interpreté como precio unitario, y el subtotal se calcula adentro.
-Las validaciones de negocio (precio y stock >= 0, cantidad > 0, stock suficiente) no están en las entidades. Van en service con excepciones propias.
-Pendiente (orden sugerido)
-Excepciones propias (exception/).
-Script SQL en db/ (categoria y producto, con claves y restricciones, y datos de ejemplo).
-persistence.xml y ConexionDB (lectura con DOM, diagnóstico de conexión).
-GenericDAO, CategoriaDAO y ProductoDAO (con la transacción de descuento y reposición de stock).
-Repositorios en memoria (UsuarioRepository, con generación de ids y baja lógica).
-Servicios con las reglas de negocio.
-UI de consola: menú principal, submenús CRUD y validación de entradas.
-Main, README, PDF de documentación y guion del video.
+- **Base (abstracta):** `Long id`, `boolean eliminado`, `LocalDateTime createdAt`. Setters públicos, `eliminar()`, `equals/hashCode` por clase e id.
+- **Categoria(nombre, descripcion):** lista interna de productos, `getProductos()` (no modificable), `agregarProducto()`, `setProductos()`.
+- **Producto(nombre, Double precio, descripcion, int stock, imagen, Boolean disponible):** sin referencia a la categoría.
+- **Usuario(nombre, apellido, mail, celular, contrasenia, rol):** `agregarPedido()`, `quitarPedido()`, `getPedidos()`. `toString` no muestra la contraseña.
+- **Pedido(FormaPago):** fecha de hoy, estado `PENDIENTE`, total 0. Implementa `Calculable`.
+  - `addDetallePedido(int cantidad, Double precioUnitario, Producto)`: si ya hay línea activa del producto, suma la cantidad. Recalcula el total.
+  - `findeDetallePedidoByProducto(Producto)`: devuelve la línea activa o `null`.
+  - `deleteDetallePedidoByProducto(Producto)`: baja lógica de la línea y recálculo.
+  - `eliminar()`: baja en cascada sobre los detalles.
+- **DetallePedido(int cantidad, Double subtotal, Producto).**
 
-Decisiones abiertas: motor de base de datos (H2 embebido o MySQL 8) y si el Double de addDetallePedido es precio o subtotal.
+### Decisiones tomadas
+
+- El `Double` de `addDetallePedido` es el **precio unitario**; el subtotal se calcula adentro.
+- Las validaciones de negocio no están en las entidades: van en `service`.
+- `DetallePedido` no tiene repositorio propio: se guarda y se da de baja a través del `Pedido`.
+- `DAO` para la persistencia JDBC y `repository` para la persistencia en memoria, según lo pedido por la consigna.
+- Solo un pedido `CONFIRMADO` tiene stock descontado, por eso solo en ese caso se repone al cancelar o eliminar.
+- La reposición de stock no filtra por `eliminado`: si el producto se dio de baja después de la venta, el stock igual vuelve.
+- Al eliminar un pedido no se llama a `Usuario.quitarPedido` (baja lógica): `listarPorUsuario` filtra los eliminados.
+
+## Código generado en esta conversación
+
+### `exception/` (un archivo por clase)
+
+Todas heredan de `AppException extends RuntimeException`. La UI captura `AppException` y muestra solo `getMessage()`.
+
+| Clase | Uso |
+|---|---|
+| `AppException` | Base. Constructores `(String)` y `(String, Throwable)` |
+| `PersistenciaException` | Error de base o de configuración. Solo se crea en `dao` y `config`. Admite `(String, Throwable)` |
+| `EntidadNoEncontradaException` | Registro inexistente o dado de baja |
+| `StockInvalidoException` | Stock insuficiente o negativo |
+| `ValidacionException` | Precio negativo, cantidad <= 0, campo vacío, formato inválido |
+| `NombreDuplicadoException` | Nombre de categoría repetido entre activas |
+| `MailDuplicadoException` | Mail de usuario repetido |
+| `OperacionNoPermitidaException` | Regla de negocio que impide la operación |
+
+### `config/ConexionDB` y `META-INF/persistence.xml`
+
+- `static Connection getConnection() throws SQLException`: conexión nueva por llamada (el que la usa la cierra).
+- `static Diagnostico diagnosticar()`: `record Diagnostico(boolean ok, String mensaje)`. Verifica configuración, driver, conexión y existencia de las tablas `categoria` y `producto` (con `DatabaseMetaData`, sin SQL). Nunca lanza excepciones.
+- `static String getConfiguracionVisible()`: texto para "Ver configuración de conexión", con la contraseña enmascarada.
+- Lee `src/META-INF/persistence.xml` (o el classpath) con DOM, rechazando DOCTYPE. Propiedades: `jakarta.persistence.jdbc.driver|url|user|password` (también acepta `javax.`). Hay que ejecutar la app desde la carpeta raíz del proyecto.
+- `persistence.xml` viene con H2 en modo archivo (`jdbc:h2:file:./db/foodstore`, driver `org.h2.Driver`, usuario `sa`) y el bloque de MySQL 8 comentado.
+
+### `dao/`
+
+- **`GenericDAO<T>`:** `Optional<T> buscarPorId(Long)`, `List<T> listarActivos()`, `void actualizar(T)`, `void eliminar(Long)` (baja lógica). El `insert` no está en la interfaz. Todas las consultas filtran `eliminado = FALSE`.
+- **`CategoriaDAO`:** `insert(Categoria)`, más lo de `GenericDAO`, y `existeNombreActivo(String nombre, Long excluirId)` (sin distinguir mayúsculas; `excluirId` es `null` al crear).
+- **`ProductoDAO`:** `insert(Producto, Long idCategoria)`, más lo de `GenericDAO`, y:
+  - `listarPorCategoria(Long)`, `reasignarCategoria(Long idProducto, Long idCategoria)`, `contarActivosPorCategoria(Long)`.
+  - `descontarStock(Map<Long,Integer>)` y `reponerStock(Map<Long,Integer>)`: una sola transacción, rollback ante cualquier fallo. El descuento es un `UPDATE ... WHERE stock >= ?` (sin condición de carrera) y los ids se procesan en orden para evitar deadlocks. Lanzan `StockInvalidoException` o `EntidadNoEncontradaException`.
+
+**Esquema que asumen los DAO:**
+
+- `categoria(id, nombre, descripcion, eliminado, created_at)`
+- `producto(id, nombre, precio, descripcion, stock, imagen, disponible, eliminado, created_at, categoria_id)`
+- `id` autogenerado en ambas.
+
+### `repository/`
+
+- **`UsuarioRepository`:** `guardar`, `buscarPorId`, `buscarPorMail`, `listarActivos`, `eliminar` (baja lógica, lanza `EntidadNoEncontradaException`), `existeMail(String mail, Long excluirId)`. Genera ids con un contador.
+- **`PedidoRepository`:** `guardar` (asigna id al pedido y a sus detalles sin id), `buscarPorId`, `listarActivos`, `eliminar` (usa `Pedido.eliminar()`, cascada sobre detalles).
+
+### `service/`
+
+- **`CategoriaService(CategoriaDAO, ProductoDAO)`:** `crear`, `listar`, `buscarPorId` (ambos cargan los productos), `modificar`, `eliminar` (no permite baja con productos activos).
+- **`ProductoService(ProductoDAO, CategoriaDAO)`:** `crear(..., Long idCategoria)`, `listar`, `listarPorCategoria`, `buscarPorId`, `modificar`, `reasignarCategoria`, `eliminar`.
+- **`UsuarioService(UsuarioRepository)`:** `registrar`, `listar`, `buscarPorId`, `modificar` (contraseña vacía conserva la actual), `eliminar`.
+- **`PedidoService(PedidoRepository, UsuarioRepository, ProductoDAO)`:** `crear(idUsuario, FormaPago)`, `listar`, `listarPorUsuario`, `buscarPorId`, `agregarProducto`, `quitarProducto`, `confirmar`, `cancelar`, `eliminar`. Agregar y quitar líneas solo con el pedido `PENDIENTE`.
+- **`Validaciones`** (package-private): `texto`, `precio`, `stock`, `cantidad`, `mail`.
+
+## Supuestos a verificar contra las entidades reales
+
+- `Estado` tiene `PENDIENTE`, `CONFIRMADO` y `CANCELADO`.
+- Existen `isEliminado()` en `Base`, `getDetalles()` en `Pedido`, `getEstado()`/`setEstado()`, y en `DetallePedido` `getCantidad()`, `getProducto()`, `isEliminado()`.
+- Existen los getters y setters comunes: `getNombre`, `getPrecio`, `getStock`, `getDisponible`, `getDescripcion`, `getImagen`, `getMail`, `getCreatedAt`, `setNombre`, `setPrecio`, `setStock`, `setMail`, `setRol`, `setContrasenia`, etc.
+- `Categoria.setProductos` recibe una `List<Producto>`.
+- `Base` tiene `setId`, `setEliminado` y `setCreatedAt` públicos.
+
+## Pendiente
+
+1. Script SQL en `db/` (tablas `categoria` y `producto` con claves, restricciones y datos de ejemplo), respetando las columnas del esquema de arriba.
+2. UI de consola: menú principal (con `[BASE DE DATOS]` / `[MEMORIA]` en cada opción y "Ver configuración de conexión"), submenús CRUD y validación de entradas.
+3. `Main` (diagnóstico de conexión al arrancar y armado de DAO, repositorios y services).
+4. README, PDF de documentación y guion del video.
+
+## Decisión abierta
+
+- Motor de base de datos: H2 embebido o MySQL 8. Solo cambian el `persistence.xml`, el `.jar` en `lib/` y la sintaxis del autoincremental en el script SQL.
+
+di ok cuando entiendas
